@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jo Ken Po — Sly Ass</title>
+
+  <!-- playful rounded font -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+
+  <style>
+    :root{ --glass-bg: rgba(255,255,255,0.86); --text:#0b1220; }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:'Fredoka One', system-ui,-apple-system,'Segoe UI',Roboto,Arial;background:#000;color:var(--text);-webkit-font-smoothing:antialiased}
+
+    .bg-video{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+    .bg-video video{position:absolute;bottom:0;left:50%;transform:translateX(-50%);min-width:100%;min-height:100%;object-fit:cover;object-position:center bottom;filter:brightness(0.48) contrast(1.05) saturate(1.03);}
+
+    @media (max-width:800px){.bg-video video{ object-position:center 85%; }}@media (max-width:480px){.bg-video video{ object-position:center 92%; }}
+
+    .app{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:18px;transition:transform 220ms ease}
+
+    /* subtle rumble animations used only for short event pulses */
+    .rumble-running{ animation:rumbleRun 650ms linear; }
+    @keyframes rumbleRun{ 0%{transform:translate(0,0) rotate(0)} 30%{transform:translate(-2px,1px) rotate(-0.12deg)} 60%{transform:translate(2px,-1px) rotate(0.12deg)} 100%{transform:translate(0,0) rotate(0)} }
+    .rumble-heavy-running{ animation:rumbleHeavyRun 700ms linear; }
+    @keyframes rumbleHeavyRun{ 0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(-4px,2px) rotate(-0.35deg)} 50%{transform:translate(3px,-2px) rotate(0.32deg)} 75%{transform:translate(-2px,1px) rotate(-0.18deg)} 100%{transform:translate(0,0) rotate(0)} }
+
+    header{width:100%;max-width:1200px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .title{display:flex;flex-direction:column;gap:4px;color:var(--glass-bg);text-shadow:0 8px 28px rgba(0,0,0,0.6)}
+    h1{margin:0;font-size:28px;letter-spacing:1px}
+    .subtitle{font-size:12px;opacity:.95}
+
+    .controls{display:flex;gap:12px;align-items:center}
+    .img-btn{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--glass-bg);cursor:pointer;font-weight:700;backdrop-filter: blur(2px)}
+    .img-btn img{width:28px;height:28px;object-fit:contain;border-radius:8px}
+    .ghost-text{font-weight:700;color:var(--glass-bg);font-size:13px;opacity:0.98}
+
+    .toggle-wrap{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--glass-bg)}
+    .toggle{width:44px;height:24px;border-radius:18px;background:rgba(255,255,255,0.06);display:inline-block;position:relative;border:1px solid rgba(255,255,255,0.06);cursor:pointer}
+    .toggle .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:white;transition:left .18s ease, background .18s ease}
+    .toggle.on{background:linear-gradient(90deg,#ffd166,#ff6b6b)}
+    .nuclear-label{font-size:13px;color:var(--glass-bg);font-weight:700;margin-left:6px}
+    .toggle.disabled{opacity:0.45;pointer-events:none}
+
+    .arena-wrap{width:100%;max-width:1200px;display:flex;gap:18px}
+    .arena{flex:1;min-height:640px;border-radius:18px;background:linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06));backdrop-filter: blur(10px) saturate(1.05);box-shadow:0 22px 70px rgba(2,6,23,0.65);border:1px solid rgba(255,255,255,0.04);position:relative;overflow:hidden;padding:14px;display:flex;flex-direction:column;align-items:center}
+    .arena-inner{position:relative;flex:1;width:100%;border-radius:12px;background:rgba(255,255,255,0.012);overflow:hidden;border:1px solid rgba(255,255,255,0.02);display:block;margin-top:8px}
+
+    .piece-btns{display:flex;gap:10px;justify-content:center;margin-top:6px}
+    .piece-btn{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:12px 18px;border-radius:12px;cursor:pointer;font-size:18px;color:var(--glass-bg);backdrop-filter: blur(4px);}
+    .piece-btn.active{box-shadow:0 12px 36px rgba(0,0,0,0.28);transform:translateY(-4px)}
+
+    .hud{width:320px;min-width:240px;display:flex;flex-direction:column;gap:12px}
+    .fancy-hud{position:relative;padding:14px;border-radius:14px;overflow:visible;background:rgba(255,255,255,0.06);backdrop-filter:blur(8px) saturate(1.04);border:1px solid rgba(255,255,255,0.08);box-shadow:0 18px 40px rgba(2,6,23,0.18);}
+    .fancy-hud::before{content:'';position:absolute;inset:-6px;background:linear-gradient(90deg,#ff6b6b,#ffd166,#8ecae6,#a0e7a0,#c77dff,#ffd6a5);background-size:300% 300%;filter:blur(14px);opacity:0.55;z-index:-2;border-radius:16px;animation:rainbow 9s linear infinite;}
+    @keyframes rainbow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+    .counts{display:flex;gap:8px;align-items:center;justify-content:space-between}
+    .agent{position:absolute;user-select:none;touch-action:none;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;transition:transform .12s ease, box-shadow .12s ease}
+    .agent.rock{font-size:24px}
+    .agent.paper{font-size:20px}
+    .agent.scissors{font-size:20px}
+    .agent.convert{animation:convertFlash 420ms ease-out}
+    @keyframes convertFlash{0%{box-shadow:0 0 0px rgba(255,255,255,0)}30%{box-shadow:0 8px 28px rgba(255,255,255,0.95)}100%{box-shadow:0 0 0px rgba(255,255,255,0)}}
+
+    #playerChoiceDisplay{background:linear-gradient(90deg, rgba(0,0,0,0.65), rgba(0,0,0,0.5));color:white;padding:8px 10px;border-radius:10px}
+
+    .victory-wrap{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center}
+    .victory-title{font-size:18px;font-weight:900;padding:6px 12px;border-radius:10px;display:inline-block;color:#ffd54a;background:linear-gradient(180deg, rgba(255,213,74,0.95), rgba(255,230,120,0.65));box-shadow:0 10px 30px rgba(255,200,60,0.12);text-shadow:0 2px 0 rgba(0,0,0,0.15);position:relative;overflow:visible}
+    .victory-stars{display:inline-block;margin-left:8px;color:rgba(255,250,210,0.98);font-size:16px}
+    .loser-title{font-size:18px;font-weight:900;padding:6px 12px;border-radius:10px;display:inline-block;color:#ffd54a;position:relative;overflow:visible;text-shadow:0 2px 0 rgba(0,0,0,0.15)}
+    .loser-title .halo{position:absolute;inset:-6px;background:linear-gradient(90deg,#ff6b6b,#ffd166,#8ecae6,#a0e7a0,#c77dff,#ffd6a5);filter:blur(12px);opacity:0.6;z-index:-2;border-radius:12px}
+
+    .confetti{position:absolute;inset:0;pointer-events:none;z-index:6}
+    .confetti .piece{position:absolute;border-radius:2px;opacity:0.95;animation:fall 1800ms linear forwards}
+    @keyframes fall{from{transform:translateY(-20vh) rotate(0)} to{transform:translateY(120vh) rotate(720deg);opacity:0}}
+
+    .rocket{position:absolute;left:50%;bottom:6px;translate:-50% 0;font-size:20px;z-index:8;pointer-events:none;opacity:0}
+    .spawn-burst{position:absolute;width:10px;height:10px;border-radius:50%;pointer-events:none;z-index:9;opacity:0}
+
+    /* boom pulse centered */
+    .boom-pulse{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.3);width:220px;height:220px;border-radius:999px;pointer-events:none;z-index:40;display:flex;align-items:center;justify-content:center;opacity:0}
+    .boom-pulse .core{width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #ffd166, #ff6b6b);box-shadow:0 20px 80px rgba(255,120,60,0.22)}
+    .boom-pulse.show{animation:boomAnim 740ms ease-out forwards}
+    @keyframes boomAnim{0%{opacity:0;transform:translate(-50%,-50%) scale(0.2)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
+
+    .leaderboard{margin-top:10px;font-size:12px;color:rgba(255,255,255,0.95)}
+    .leaderboard .row{display:flex;justify-content:space-between;gap:8px}
+    .leaderboard .muted{opacity:0.8;font-size:11px;color:rgba(255,255,255,0.78)}
+
+    footer{margin-top:16px;color:rgba(255,255,255,0.9);font-size:12px}
+
+    @media(max-width:1000px){.arena-wrap{flex-direction:column}.hud{width:100%}.arena{min-height:520px}}
+    @media(max-width:560px){h1{font-size:18px}.agent{width:28px;height:28px;font-size:16px}}
+  </style>
+</head>
+<body>
+
+  <div class="bg-video">
+    <video id="bgVideo" autoplay muted loop playsinline>
+      <source src="assets/video/01.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <div class="app" id="appContainer" aria-live="polite">
+    <header>
+      <div class="title">
+        <h1>Jo Ken Po — Sly Ass</h1>
+        <div class="subtitle">Pick Rock, Paper or Scissors..I hope you smile SlyAss:)</div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="img-btn" title="Start (requires choice)">
+          <img id="startIcon" src="assets/img/01.png" alt="Start icon">
+          <span class="ghost-text">Start</span>
+        </button>
+
+        <button id="restartBtn" class="img-btn" title="Restart">
+          <img id="restartIcon" src="assets/img/02.png" alt="Restart icon">
+          <span class="ghost-text">Restart</span>
+        </button>
+
+        <div class="toggle-wrap" title="Toggle NUCLEAR mode before starting">
+          <span class="ghost-text">NUCLEAR</span>
+          <div id="nuclearToggle" class="toggle" role="switch" aria-checked="false" tabindex="0">
+            <div class="knob"></div>
+          </div>
+          <div id="nuclearLabel" class="nuclear-label">OFF</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="arena-wrap">
+      <section class="arena" aria-label="Battle arena">
+        <div style="display:flex;gap:8px;align-items:center;justify-content:center;width:100%">
+          <div class="piece-btns">
+            <button class="piece-btn" data-piece="rock">🪨 Rock</button>
+            <button class="piece-btn" data-piece="paper">📄 Paper</button>
+            <button class="piece-btn" data-piece="scissors">✂️ Scissors</button>
+          </div>
+        </div>
+
+        <div class="arena-inner" id="arenaInner" aria-hidden="false">
+          <div class="confetti" id="confetti" aria-hidden="true"></div>
+          <div class="boom-pulse" id="boomPulse"><div class="core"></div></div>
+        </div>
+      </section>
+
+      <aside class="hud" aria-live="polite">
+        <div class="fancy-hud" id="fancyHud">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Battle Progress</strong>
+            <div id="timer">00:00</div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+            <div id="playerChoiceDisplay">Choice: —</div>
+            <div style="margin-left:8px;color:rgba(255,255,255,0.8);font-size:12px">(click an emoji)</div>
+          </div>
+          <div class="counts" style="margin-top:10px">
+            <div><div class="stat">🪨 Rock: <span id="countRock">0</span></div></div>
+            <div><div class="stat">📄 Paper: <span id="countPaper">0</span></div></div>
+            <div><div class="stat">✂️ Scissors: <span id="countScissors">0</span></div></div>
+          </div>
+
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="stat">Your score: <strong id="playerScore">0</strong></div>
+              <div class="stat">Pieces left: <strong id="piecesLeft">0</strong></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="stat">Spawns created: <strong id="spawnCounter">0</strong></div>
+              <div class="stat">Mode: <strong id="modeLabel">Non-Nuclear</strong></div>
+            </div>
+          </div>
+
+          <div class="leaderboard" id="leaderboard">
+            <div class="muted">Top 3 — Normal</div>
+            <div id="lbNormal"></div>
+            <div class="muted" style="margin-top:6px">Top 3 — Nuclear</div>
+            <div id="lbNuclear"></div>
+          </div>
+        </div>
+
+        <div class="card" id="hudModal" style="display:block;pointer-events:none">
+          <div id="endMessageInner" style="text-align:center;pointer-events:auto"></div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>Designed by a Sly Ass for a special Sly Ass. (This game was not made for "Olha" but for a Sly Ass)</footer>
+  </div>
+
+  <!--
+    ASSETS (comment): place your media files:
+    - background video: assets/video/01.mp4
+    - background audio: assets/audio/01.mp3
+    - icons: assets/img/01.png (start), assets/img/02.png (restart), assets/img/03.png (nuclear icon)
+  -->
+
+  <script>
+    /* ====== CONFIG (tweakable) ====== */
+    const baseConfig = {
+      TOTAL_PER_TYPE: 14, CONVERT_COOLDOWN: 420, NUDGE_TIMEOUT: 12000,
+      CRAZY_MOVE_PROB_PER_SECOND: 0.48, CRAZY_MOVE_FORCE: 4.0, CRAZY_MEGA_PROB: 0.08, CRAZY_MEGA_MULT: 2.2,
+      SPAWN_NEAR_END_THRESHOLD: 10, SPAWN_NEAR_END_PROB: 0.18, SPAWN_NEAR_END_COOLDOWN: 2200,
+      SPONTANEOUS_SPAWN_PROB_PER_SECOND: 0.18, SPONTANEOUS_MAX_PER_MINUTE: 18,
+      MONOTONY_TIME_MS: 6000, MONOTONY_SPEED_THRESHOLD: 0.35, MONOTONY_SPAWN_BOOST: 0.9, MONOTONY_BERSERK_PROB: 0.32, MONOTONY_MAX_STACK: 5,
+      ROCKET_DURATION: 620
+    };
+
+    const nuclearConfig = {
+      TOTAL_PER_TYPE: 10, CONVERT_COOLDOWN: 180, NUDGE_TIMEOUT: 7000,
+      CRAZY_MOVE_PROB_PER_SECOND: 1.0, CRAZY_MOVE_FORCE: 14.0, CRAZY_MEGA_PROB: 0.66, CRAZY_MEGA_MULT: 6.0,
+      SPAWN_NEAR_END_THRESHOLD: 18, SPAWN_NEAR_END_PROB: 0.86, SPAWN_NEAR_END_COOLDOWN: 600,
+      SPONTANEOUS_SPAWN_PROB_PER_SECOND: 0.92, SPONTANEOUS_MAX_PER_MINUTE: 999,
+      MONOTONY_TIME_MS: 900, MONOTONY_SPEED_THRESHOLD: 4.8, MONOTONY_SPAWN_BOOST: 2.4, MONOTONY_BERSERK_PROB: 0.88, MONOTONY_MAX_STACK: 20,
+      ROCKET_DURATION: 320
+    };
+
+    let CONFIG = Object.assign({}, baseConfig);
+    let NUCLEAR = false;
+    let spawnCounter = 0;
+
+    const EMOJI = { rock: '🪨', paper: '📄', scissors: '✂️' };
+    const BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+
+    /* ====== DOM & STATE ====== */
+    const arenaInner = document.getElementById('arenaInner');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const startIcon = document.getElementById('startIcon');
+    const restartIcon = document.getElementById('restartIcon');
+    const nuclearToggle = document.getElementById('nuclearToggle');
+    const nuclearLabel = document.getElementById('nuclearLabel');
+
+    const pieceBtns = document.querySelectorAll('.piece-btn');
+    const playerChoiceDisplay = document.getElementById('playerChoiceDisplay');
+    const countRockEl = document.getElementById('countRock');
+    const countPaperEl = document.getElementById('countPaper');
+    const countScissorsEl = document.getElementById('countScissors');
+    const playerScoreEl = document.getElementById('playerScore');
+    const piecesLeftEl = document.getElementById('piecesLeft');
+    const timerEl = document.getElementById('timer');
+    const confetti = document.getElementById('confetti');
+    const endMessageInner = document.getElementById('endMessageInner');
+    const appContainer = document.getElementById('appContainer');
+    const fancyHud = document.getElementById('fancyHud');
+    const spawnCounterEl = document.getElementById('spawnCounter');
+    const modeLabelEl = document.getElementById('modeLabel');
+    const lbNormal = document.getElementById('lbNormal');
+    const lbNuclear = document.getElementById('lbNuclear');
+    const boomPulse = document.getElementById('boomPulse');
+
+    let playerChoice = null;
+    let agents = [];
+    let running = false;
+    let lastTime = null;
+    let startTime = null;
+    let rafId = null;
+    let playerScore = 0;
+    let lastConversionAt = 0;
+
+    let monotonyStack = 0;
+    let lastAutoSpawnAt = 0;
+    let crazyAccumulator = 0;
+    let spontaneousSpawnCounter = 0;
+
+    // nuclear haptic limiter: last score milestone that triggered vibe
+    let lastNuclearVibeMilestone = 0;
+
+    // ===== HAPTICS helper =====
+    function tryVibrate(pattern){
+      try{ if('vibrate' in navigator && typeof navigator.vibrate === 'function'){ navigator.vibrate(pattern); } }catch(e){}
+    }
+
+    const music = new Audio('assets/audio/01.mp3'); music.loop = true; music.preload = 'auto'; music.volume = 0.66;
+    function tryPlayMusic(){ try{ music.currentTime = 0; const p = music.play(); if(p && p.then) p.catch(()=>{}); }catch(e){} }
+
+    /* ====== Leaderboard (localStorage) ====== */
+    const STORAGE_KEYS = { normal: 'jkp_scores_normal', nuclear: 'jkp_scores_nuclear' };
+    function loadScores(mode){
+      try{
+        const key = mode === 'nuclear' ? STORAGE_KEYS.nuclear : STORAGE_KEYS.normal;
+        const raw = localStorage.getItem(key);
+        if(!raw) return [];
+        return JSON.parse(raw) || [];
+      }catch(e){ return []; }
+    }
+    function saveScores(mode, arr){
+      try{
+        const key = mode === 'nuclear' ? STORAGE_KEYS.nuclear : STORAGE_KEYS.normal;
+        localStorage.setItem(key, JSON.stringify(arr.slice(0,3)));
+      }catch(e){}
+    }
+    function recordScore(mode, score){
+      const list = loadScores(mode);
+      list.push({score: score, date: (new Date()).toISOString()});
+      list.sort((a,b)=>b.score - a.score);
+      const top3 = list.slice(0,3);
+      saveScores(mode, top3);
+      renderLeaderboards();
+    }
+    function renderLeaderboards(){
+      const n = loadScores('normal'); const m = loadScores('nuclear');
+      lbNormal.innerHTML = n.length ? n.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>';
+      lbNuclear.innerHTML = m.length ? m.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>';
+    }
+
+    /* ====== UI helpers ====== */
+    function applyModeVisuals(){
+      if(NUCLEAR){
+        startIcon.src = 'assets/img/03.png';
+        nuclearLabel.textContent = 'ON';
+        modeLabelEl.textContent = 'Nuclear';
+      } else {
+        startIcon.src = 'assets/img/01.png';
+        nuclearLabel.textContent = 'OFF';
+        modeLabelEl.textContent = 'Non-Nuclear';
+      }
+      restartIcon.src = 'assets/img/02.png';
+      spawnCounterEl.textContent = spawnCounter;
+    }
+
+    function setPlayerChoice(type){
+      playerChoice = type;
+      playerChoiceDisplay.textContent = 'Choice: ' + (type ? (EMOJI[type] + ' ' + capitalize(type)) : '—');
+      pieceBtns.forEach(b=>b.classList.toggle('active', b.dataset.piece===type));
+    }
+    pieceBtns.forEach(b=>{ b.addEventListener('click', ()=>setPlayerChoice(b.dataset.piece)); b.addEventListener('touchstart', ()=>setPlayerChoice(b.dataset.piece)); });
+
+    function setNuclear(on){
+      if(running) return;
+      NUCLEAR = !!on; CONFIG = NUCLEAR ? Object.assign({}, nuclearConfig) : Object.assign({}, baseConfig);
+      lastNuclearVibeMilestone = 0; // reset
+      if(NUCLEAR){ nuclearToggle.classList.add('on'); nuclearToggle.setAttribute('aria-checked','true'); nuclearToggle.querySelector('.knob').style.left='23px'; }
+      else { nuclearToggle.classList.remove('on'); nuclearToggle.setAttribute('aria-checked','false'); nuclearToggle.querySelector('.knob').style.left='3px'; }
+      applyModeVisuals();
+    }
+    nuclearToggle.addEventListener('click', ()=>{ setNuclear(!NUCLEAR); });
+    nuclearToggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setNuclear(!NUCLEAR); } });
+
+    restartBtn.addEventListener('click', ()=>{ resetGame(); });
+    startBtn.addEventListener('click', ()=>{ if(!playerChoice){ alert('Please pick a piece before starting.'); return; } if(running) return; nuclearToggle.classList.add('disabled'); resetArena(); spawnAgents(); startBattle(); tryPlayMusic(); });
+
+    /* ====== Game lifecycle ====== */
+    function resetGame(){
+      stopBattle(); clearArena(); setPlayerChoice(null); playerScore=0; updateHUD(); endMessageInner.innerHTML=''; confetti.innerHTML=''; monotonyStack=0; lastAutoSpawnAt=0; spontaneousSpawnCounter=0; spawnCounter=0;
+      spawnCounterEl.textContent = spawnCounter; nuclearToggle.classList.remove('disabled'); applyModeVisuals(); lastNuclearVibeMilestone = 0;
+    }
+    function resetArena(){ clearArena(); agents=[]; playerScore=0; updateHUD(); lastConversionAt = performance.now(); monotonyStack=0; lastAutoSpawnAt=0; spontaneousSpawnCounter=0; lastNuclearVibeMilestone = 0; }
+    function clearArena(){ cancelAnimationFrame(rafId); arenaInner.querySelectorAll('.agent, .rocket, .spawn-burst').forEach(n=>n.remove()); agents=[]; running=false; lastTime=null; startTime=null; rafId=null; }
+
+    /* ====== Spawn & physics ====== */
+    const AGENT_SIZE = 40;
+    function spawnAgents(){
+      const rect = arenaInner.getBoundingClientRect(); const centerX = rect.width/2; const centerY = rect.height/2;
+      function randAroundCenter(range=280){ return { x: centerX + (Math.random()*2-1)*range, y: centerY + (Math.random()*2-1)*range }; }
+      function spawn(type, n){
+        for(let i=0;i<n;i++){
+          const pos = randAroundCenter(280);
+          const el = document.createElement('div'); el.className = 'agent '+type; el.dataset.type = type; el.style.left = (pos.x)+'px'; el.style.top = (pos.y)+'px'; el.innerText = EMOJI[type]; arenaInner.appendChild(el);
+          const baseSpeed = (1.2 + Math.random()*2.6) * (NUCLEAR ? 1.6 : 1.15);
+          const angle = Math.random()*Math.PI*2;
+          const vx = Math.cos(angle) * baseSpeed;
+          const vy = Math.sin(angle) * baseSpeed;
+          agents.push({el, x:pos.x, y:pos.y, vx, vy, r:AGENT_SIZE/2, type, nextConvertAllowed:0});
+          spawnCounter++;
+        }
+      }
+      spawn('rock', CONFIG.TOTAL_PER_TYPE); spawn('paper', CONFIG.TOTAL_PER_TYPE); spawn('scissors', CONFIG.TOTAL_PER_TYPE);
+      updateHUD(); lastConversionAt = performance.now(); spawnCounterEl.textContent = spawnCounter;
+    }
+
+    function spawnSingleRandom(){ const types=['rock','paper','scissors']; spawnSingle(types[Math.floor(Math.random()*types.length)]); }
+    function spawnSingle(type){
+      const rect = arenaInner.getBoundingClientRect();
+      const pos = { x: 40 + Math.random()*(rect.width-80), y: 40 + Math.random()*(rect.height-80) };
+      rocketSpawnVisual(pos.x,pos.y);
+      const el = document.createElement('div'); el.className = 'agent '+type; el.dataset.type = type; el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px'; el.innerText = EMOJI[type]; arenaInner.appendChild(el);
+      const baseSpeed = (2.2 + Math.random()*3.4) * (NUCLEAR ? 1.8 : 1.18);
+      const angle = Math.random()*Math.PI*2;
+      const vx = Math.cos(angle) * baseSpeed;
+      const vy = Math.sin(angle) * baseSpeed;
+      agents.push({el, x:pos.x, y:pos.y, vx, vy, r:AGENT_SIZE/2, type, nextConvertAllowed: performance.now() + (NUCLEAR ? 120 : 300)});
+      spawnCounter++; updateHUD(); spawnCounterEl.textContent = spawnCounter;
+    }
+
+    function rocketSpawnVisual(targetX,targetY){
+      const rect = arenaInner.getBoundingClientRect();
+      const rocket = document.createElement('div'); rocket.className='rocket'; rocket.style.left=(targetX-10)+'px'; rocket.style.bottom='-40px'; rocket.style.opacity='1'; rocket.innerText='🚀'; arenaInner.appendChild(rocket);
+      const startBottom = -40; const endBottom = rect.height - targetY - 12; const duration = CONFIG.ROCKET_DURATION;
+      rocket.animate([{transform:`translate(-50%, ${-startBottom}px) scale(.9)`, opacity:1},{transform:`translate(-50%, ${-endBottom}px) scale(1)`, opacity:1}],{duration, easing:'cubic-bezier(.2,.9,.2,1)'});
+      setTimeout(()=>{
+        const burstCount = 6 + Math.floor(Math.random()*10) * (NUCLEAR ? 3 : 1);
+        for(let i=0;i<burstCount;i++){
+          const b = document.createElement('div'); b.className='spawn-burst'; b.style.left=(targetX + (Math.random()*40-20))+'px'; b.style.top=(targetY + (Math.random()*40-20))+'px';
+          b.style.background = ['#ff6b6b','#ffd166','#8ecae6','#a0e7a0','#c77dff','#ffd6a5'][Math.floor(Math.random()*6)];
+          const size = 6 + Math.random()*12; b.style.width=size+'px'; b.style.height=size+'px'; arenaInner.appendChild(b);
+          const dx = (Math.random()*2-1) * (NUCLEAR ? 180 : 80); const dy = (Math.random()*2-1) * (NUCLEAR ? 180 : 80);
+          b.animate([{transform:'scale(0.2) translate(0,0)', opacity:1},{transform:`scale(1) translate(${dx}px, ${dy}px)`, opacity:0}],{duration:700 + Math.random()*500, easing:'cubic-bezier(.2,.9,0.2,1)'});
+          setTimeout(()=>b.remove(),1200);
+        }
+        rocket.remove();
+      }, duration + 50);
+    }
+
+    /* ====== Main loop & physics ====== */
+    function startBattle(){ running = true; startTime = performance.now(); lastTime = startTime; rafId = requestAnimationFrame(loop); }
+    function stopBattle(){ running = false; cancelAnimationFrame(rafId); nuclearToggle.classList.remove('disabled'); appContainer.classList.remove('rumble-running'); appContainer.classList.remove('rumble-heavy-running'); }
+
+    function loop(t){
+      const dt = Math.min(0.06, (t - lastTime) / 1000);
+      lastTime = t;
+      timerEl.textContent = new Date(Math.floor((t-startTime)/1000)*1000).toISOString().substr(14,5);
+      updateAgents(dt);
+      rafId = requestAnimationFrame(loop);
+      checkEndCondition();
+    }
+
+    function updateAgents(dt){
+      const rect = arenaInner.getBoundingClientRect(); const w = rect.width; const h = rect.height;
+      crazyAccumulator += dt; if(crazyAccumulator >= 0.25){ maybeTriggerCrazyMove(crazyAccumulator); crazyAccumulator = 0; }
+      if(Math.random() < CONFIG.SPONTANEOUS_SPAWN_PROB_PER_SECOND * dt && spontaneousSpawnCounter < CONFIG.SPONTANEOUS_MAX_PER_MINUTE){ spawnSingleRandom(); spontaneousSpawnCounter++; }
+      if(Math.random() < 0.02){
+        for(let i=0;i<Math.min(8, agents.length); i++){
+          const a = agents[Math.floor(Math.random()*agents.length)];
+          a.vx += (Math.random()*2-1) * 0.8;
+          a.vy += (Math.random()*2-1) * 0.8;
+        }
+      }
+      for(let a of agents){
+        const jitterBase = NUCLEAR ? 0.18 : 0.12;
+        a.vx += (Math.sin((a.x + a.y + performance.now()/900) * 0.001) * jitterBase) + (Math.random() * jitterBase * 1.2 - jitterBase*0.6);
+        a.vy += (Math.cos((a.y - a.x + performance.now()/1100) * 0.001) * jitterBase) + (Math.random() * jitterBase * 1.2 - jitterBase*0.6);
+
+        a.x += a.vx * dt * (NUCLEAR ? (0.9 + Math.random()*1.2) : (1.02 + Math.random()*0.5));
+        a.y += a.vy * dt * (NUCLEAR ? (0.9 + Math.random()*1.2) : (1.02 + Math.random()*0.5));
+
+        // detect wall bounces and corner touches (for vibration)
+        let touchedX = false, touchedY = false;
+        if(a.x < 8){ a.x = 8; a.vx = Math.abs(a.vx) * (NUCLEAR ? 0.96 : 0.94) + 0.02; touchedX = true; }
+        if(a.x > w - 40){ a.x = w-40; a.vx = -Math.abs(a.vx) * (NUCLEAR ? 0.96 : 0.94) - 0.02; touchedX = true; }
+        if(a.y < 8){ a.y = 8; a.vy = Math.abs(a.vy) * (NUCLEAR ? 0.96 : 0.94) + 0.02; touchedY = true; }
+        if(a.y > h - 40){ a.y = h-40; a.vy = -Math.abs(a.vy) * (NUCLEAR ? 0.96 : 0.94) - 0.02; touchedY = true; }
+
+        // if agent hit a corner (both axes) -> small rumble + vibration (non-nuclear)
+        if(touchedX && touchedY && !NUCLEAR){
+          appContainer.classList.add('rumble-running');
+          setTimeout(()=>appContainer.classList.remove('rumble-running'), 380);
+          tryVibrate(40);
+        }
+
+        a.vx *= (NUCLEAR ? 0.999 : 0.9994);
+        a.vy *= (NUCLEAR ? 0.999 : 0.9994);
+
+        const CLAMP = NUCLEAR ? 12.0 : 5.2;
+        a.vx = Math.max(-CLAMP, Math.min(CLAMP, a.vx));
+        a.vy = Math.max(-CLAMP, Math.min(CLAMP, a.vy));
+      }
+
+      let anyConversion = false;
+      for(let i=0;i<agents.length;i++){
+        for(let j=i+1;j<agents.length;j++){
+          const A = agents[i]; const B = agents[j];
+          const dx = A.x - B.x; const dy = A.y - B.y; const dist2 = dx*dx + dy*dy; const minDist = (AGENT_SIZE - 6);
+          if(dist2 < minDist*minDist){
+            const dist = Math.sqrt(dist2) || 0.0001; const nx = dx/dist, ny = dy/dist; const overlap = (minDist - dist)/2;
+            A.x += nx*overlap; A.y += ny*overlap; B.x -= nx*overlap; B.y -= ny*overlap;
+            const restitution = NUCLEAR ? 0.96 : 0.92;
+            const relVel = (A.vx - B.vx)*nx + (A.vy - B.vy)*ny;
+            const jimp = -(1 + restitution) * relVel * (NUCLEAR ? 0.9 : 0.6);
+            const jx = jimp * nx; const jy = jimp * ny;
+            A.vx += jx; A.vy += jy; B.vx -= jx; B.vy -= jy;
+            const tang = (NUCLEAR ? 0.18 : 0.08) * (Math.random()-0.5);
+            A.vx += -ny * tang; A.vy += nx * tang; B.vx += ny * tang; B.vy += -nx * tang;
+
+            const now = performance.now();
+            if(A.type !== B.type){
+              if(now > B.nextConvertAllowed && BEATS[A.type] === B.type){
+                convertAgent(B, A.type, A); B.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(A.type === playerChoice) incrementPlayerScore(1); }
+              else if(now > A.nextConvertAllowed && BEATS[B.type] === A.type){
+                convertAgent(A, B.type, B); A.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(B.type === playerChoice) incrementPlayerScore(1); }
+            }
+          }
+        }
+      }
+
+      if(anyConversion) lastConversionAt = performance.now();
+
+      maybeMonotonyReact();
+      maybeSpawnNearEnd(performance.now());
+
+      if(performance.now() - lastConversionAt > CONFIG.NUDGE_TIMEOUT){
+        for(let k=0;k<Math.min(12, agents.length);k++){
+          const a = agents[Math.floor(Math.random()*agents.length)];
+          a.vx += (Math.random()*2-1) * (NUCLEAR ? 4.6 : 1.8);
+          a.vy += (Math.random()*2-1) * (NUCLEAR ? 4.6 : 1.8);
+        }
+        lastConversionAt = performance.now();
+      }
+
+      if(NUCLEAR && Math.random() < 0.003){
+        if(agents.length){
+          const a = agents[Math.floor(Math.random()*agents.length)];
+          a.x = 24 + Math.random()*(arenaInner.clientWidth-48);
+          a.y = 24 + Math.random()*(arenaInner.clientHeight-48);
+          a.vx = (Math.random()*2-1) * (NUCLEAR ? 8.2 : 3.2);
+          a.vy = (Math.random()*2-1) * (NUCLEAR ? 8.2 : 3.2);
+          const burst = document.createElement('div'); burst.className='spawn-burst'; burst.style.left=(a.x)+'px'; burst.style.top=(a.y)+'px'; burst.style.background='#ffd166'; arenaInner.appendChild(burst);
+          burst.animate([{transform:'scale(.2)', opacity:1},{transform:'scale(1.6)', opacity:0}],{duration:420,easing:'ease-out'}); setTimeout(()=>burst.remove(),520);
+        }
+      }
+
+      for(let a of agents){ a.el.style.left = (a.x - (AGENT_SIZE/2)) + 'px'; a.el.style.top = (a.y - (AGENT_SIZE/2)) + 'px'; }
+      updateHUD();
+    }
+
+    /* ====== Scoring (playerScore changes go here) ====== */
+    function incrementPlayerScore(amount){
+      const prev = playerScore;
+      playerScore += amount;
+      // if nuclear mode, only vibrate and boom every 1000 points
+      if(NUCLEAR){
+        const milestone = Math.floor(playerScore / 1000);
+        if(milestone > lastNuclearVibeMilestone && milestone > 0){
+          lastNuclearVibeMilestone = milestone;
+          // boom visual + rumble/haptics
+          triggerBoom();
+          tryVibrate([140,40,100]);
+        }
+      }
+      // update HUD after score change
+      updateHUD();
+    }
+
+    function triggerBoom(){
+      boomPulse.classList.remove('show'); // restart animation
+      void boomPulse.offsetWidth;
+      boomPulse.classList.add('show');
+      // additional visual accents: many small burst particles
+      const count = NUCLEAR ? 30 : 12;
+      for(let i=0;i<count;i++){
+        const dot = document.createElement('div'); dot.className = 'spawn-burst';
+        dot.style.left = (50 + (Math.random()*180-90)) + '%';
+        dot.style.top = (50 + (Math.random()*180-90)) + '%';
+        dot.style.background = ['#ff6b6b','#ffd166','#8ecae6','#a0e7a0','#c77dff','#ffd6a5'][Math.floor(Math.random()*6)];
+        dot.style.width = (6 + Math.random()*18) + 'px';
+        dot.style.height = (6 + Math.random()*18) + 'px';
+        dot.style.opacity = 0.95;
+        dot.style.position = 'absolute';
+        dot.style.transform = 'translate(-50%,-50%)';
+        dot.style.zIndex = 45;
+        arenaInner.appendChild(dot);
+        const dx = (Math.random()*2-1) * (NUCLEAR ? 480 : 160);
+        const dy = (Math.random()*2-1) * (NUCLEAR ? 480 : 160);
+        dot.animate([{transform:'translate(-50%,-50%) scale(.3)', opacity:1},{transform:`translate(${dx}px, ${dy}px) scale(1)`, opacity:0}],{duration:700 + Math.random()*600, easing:'cubic-bezier(.2,.9,0.2,1)'});
+        setTimeout(()=>dot.remove(), 1200 + Math.random()*600);
+      }
+    }
+
+    /* ====== Conversions & HUD ====== */
+    function convertAgent(target, newType, sourceAgent){
+      if(target.type === newType) return;
+      target.type = newType; target.el.dataset.type = newType; target.el.className = 'agent ' + newType + ' convert'; target.el.innerText = EMOJI[newType];
+      try{ target.el.animate([{boxShadow:'0 0 0px rgba(255,255,255,0)'},{boxShadow:'0 20px 66px rgba(255,255,255,0.98)'},{boxShadow:'0 0 0px rgba(255,255,255,0)'}],{duration:320,easing:'ease-out'}); }catch(e){}
+      if(sourceAgent){ target.vx = (sourceAgent.vx*0.6) + (Math.random()*1.4 - 0.7); target.vy = (sourceAgent.vy*0.6) + (Math.random()*1.4 - 0.7); }
+      else { target.vx += (Math.random()*2-1) * 0.6; target.vy += (Math.random()*2-1) * 0.6; }
+      setTimeout(()=>{ if(target && target.el) target.el.classList.remove('convert'); },520);
+    }
+
+    function updateHUD(){
+      const counts={rock:0,paper:0,scissors:0}; for(let a of agents) counts[a.type]++;
+      countRockEl.textContent = counts.rock; countPaperEl.textContent = counts.paper; countScissorsEl.textContent = counts.scissors;
+      playerScoreEl.textContent = playerScore; piecesLeftEl.textContent = agents.length; spawnCounterEl.textContent = spawnCounter; modeLabelEl.textContent = NUCLEAR ? 'Nuclear' : 'Non-Nuclear';
+      renderLeaderboards();
+    }
+
+    function checkEndCondition(){
+      const typesPresent = new Set(agents.map(a=>a.type));
+      if(typesPresent.size === 1 && agents.length>0){
+        stopBattle();
+        const winner = [...typesPresent][0];
+        const playerWon = (playerChoice === winner);
+        // record score per mode
+        recordScore(NUCLEAR ? 'nuclear' : 'normal', playerScore);
+        showEndMessage(playerWon, winner);
+      }
+    }
+
+    function showEndMessage(playerWon, winnerType){
+      const starHTML = `<span class="victory-stars">✶ ✶</span>`;
+      let titleHTML = '';
+      if(playerWon){
+        titleHTML = `<div class="victory-wrap"><div><span class="victory-title">Congratulations sly ass — you chose well!</span>${starHTML}</div></div>`;
+      } else {
+        titleHTML = `<div class="victory-wrap"><div class="loser-title">Not this time sly ass — try again.</div></div>`;
+      }
+      // also display updated leaderboard for the mode
+      const mode = NUCLEAR ? 'Nuclear' : 'Normal';
+      const scores = loadScores(NUCLEAR ? 'nuclear' : 'normal');
+      const scoresHtml = scores.length ? scores.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>';
+      endMessageInner.innerHTML = `${titleHTML}
+        <div style="margin:10px 0;color:rgba(255,230,120,0.98)">Winner: ${EMOJI[winnerType]} ${capitalize(winnerType)}</div>
+        <div style="margin:8px 0"><strong>Score saved (${mode}): ${playerScore}</strong></div>
+        <div style="text-align:left; max-width:360px; margin: 0 auto"><div class="muted">Top in this mode</div>${scoresHtml}</div>
+        <div style="margin-top:12px"><button class="img-btn" id="playAgain"><img src="assets/img/02.png" alt="restart"><span class="ghost-text">Restart</span></button></div>`;
+      const p = document.getElementById('playAgain'); if(p) p.addEventListener('click', ()=>{ resetGame(); });
+      launchConfetti(playerWon ? (NUCLEAR ? 300 : 120) : (NUCLEAR ? 120 : 36));
+      fancyHud.animate([{transform:'scale(1)'},{transform:'scale(' + (NUCLEAR ? 1.12 : 1.04) + ')'},{transform:'scale(1)'}],{duration:520,easing:'ease-out'});
+
+      // final rumble + haptic (short)
+      const runClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
+      appContainer.classList.add(runClass);
+      setTimeout(()=>appContainer.classList.remove(runClass), 620);
+      tryVibrate(NUCLEAR ? [140,40,120] : [110,30,70]);
+
+      nuclearToggle.classList.remove('disabled');
+    }
+
+    function launchConfetti(n){
+      confetti.innerHTML=''; const colors=['#ff4d4f','#ffb703','#8ecae6','#a0e7a0','#c77dff','#ffd6a5'];
+      for(let i=0;i<n;i++){ const el=document.createElement('div'); el.className='piece'; el.style.left=Math.random()*100 + '%'; el.style.top=(-5 - Math.random()*20) + 'vh'; el.style.background=colors[Math.floor(Math.random()*colors.length)]; el.style.transform='rotate('+ (Math.random()*360) +'deg)'; el.style.width=(6 + Math.random()*12)+'px'; el.style.height=(10 + Math.random()*18)+'px'; el.style.animationDuration=(1600 + Math.random()*1200)+'ms'; confetti.appendChild(el); }
+      setTimeout(()=>{ confetti.innerHTML=''; }, (NUCLEAR ? 12000 : 5200));
+    }
+
+    /* ====== Monotony & chaotic events (rumble only on mega/berserk + corner) ====== */
+    function maybeMonotonyReact(){
+      const now = performance.now();
+      const timeSinceLastConv = now - lastConversionAt;
+      if(agents.length === 0) return;
+      let sumSpeed = 0; for(let a of agents) sumSpeed += Math.hypot(a.vx, a.vy);
+      const avgSpeed = sumSpeed / agents.length;
+      if(timeSinceLastConv > CONFIG.MONOTONY_TIME_MS && avgSpeed < CONFIG.MONOTONY_SPEED_THRESHOLD){
+        monotonyStack = Math.min(CONFIG.MONOTONY_MAX_STACK, monotonyStack + 1);
+        const spawns = 1 + Math.floor(Math.random() * Math.min(3 + (NUCLEAR ? 4 : 1), monotonyStack || 1));
+        for(let s=0;s<spawns;s++){ spawnSingleRandom(); }
+        if(Math.random() < (CONFIG.MONOTONY_BERSERK_PROB + monotonyStack * 0.06)){
+          triggerBerserk(1200 + Math.random()*2200);
+        }
+        fancyHud.animate([{filter:'brightness(1)'},{filter:'brightness(1.28)'},{filter:'brightness(1)'}],{duration:420,easing:'ease-out'});
+        lastConversionAt = now;
+      } else {
+        if(timeSinceLastConv < CONFIG.MONOTONY_TIME_MS/2 && monotonyStack > 0) monotonyStack = Math.max(0, monotonyStack - 1);
+      }
+    }
+
+    function maybeSpawnNearEnd(now){
+      if(agents.length <= CONFIG.SPAWN_NEAR_END_THRESHOLD && agents.length > 1){
+        if(now - lastAutoSpawnAt > CONFIG.SPAWN_NEAR_END_COOLDOWN){
+          const dtSec = Math.min(1.4, (now - lastAutoSpawnAt)/1000);
+          const monotonyBoost = ((now - lastConversionAt) > CONFIG.MONOTONY_TIME_MS ? CONFIG.MONOTONY_SPAWN_BOOST * (monotonyStack || 1) : 0);
+          const p = CONFIG.SPAWN_NEAR_END_PROB * dtSec + monotonyBoost;
+          if(Math.random() < p){
+            const count = 1 + Math.floor(Math.random() * (NUCLEAR ? 4 : 2));
+            for(let i=0;i<count;i++){ spawnSingleRandom(); }
+            lastAutoSpawnAt = now;
+            fancyHud.animate([{transform:'scale(1)'},{transform:'scale(' + (NUCLEAR ? 1.08 : 1.05) + ')'},{transform:'scale(1)'}],{duration:360,easing:'ease-out'});
+          }
+        }
+      }
+    }
+
+    function maybeTriggerCrazyMove(elapsedSeconds){
+      const p = 1 - Math.pow(1 - CONFIG.CRAZY_MOVE_PROB_PER_SECOND, elapsedSeconds);
+      const monotoneFactor = (performance.now() - lastConversionAt > CONFIG.MONOTONY_TIME_MS) ? (1 + (monotonyStack*0.25)) : 1;
+      if(Math.random() < p * monotoneFactor && agents.length > 3){
+        const count = Math.min(agents.length, Math.max(6, Math.floor(agents.length * (NUCLEAR ? 0.85 : 0.45))));
+        for(let k=0;k<count;k++){
+          const a = agents[Math.floor(Math.random()*agents.length)];
+          a.vx += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE;
+          a.vy += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE;
+        }
+        fancyHud.animate([{filter:'brightness(1)'},{filter:'brightness(1.28)'},{filter:'brightness(1)'}],{duration:440,easing:'ease-out'});
+        // MEGA event -> short rumble pulse and stronger impulses
+        if(Math.random() < CONFIG.CRAZY_MEGA_PROB && agents.length > 6){
+          for(let k=0;k<Math.min(agents.length, count * 2);k++){
+            const a = agents[Math.floor(Math.random()*agents.length)];
+            a.vx += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * CONFIG.CRAZY_MEGA_MULT;
+            a.vy += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * CONFIG.CRAZY_MEGA_MULT;
+          }
+          const rumbleClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
+          appContainer.classList.add(rumbleClass);
+          setTimeout(()=>appContainer.classList.remove(rumbleClass), 900);
+          // haptics: modest on nuclear, shorter on non-nuclear
+          tryVibrate(NUCLEAR ? [150,40,100] : 120);
+          fancyHud.animate([{transform:'translateY(0)'},{transform:'translateY(-8px)'},{transform:'translateY(0)'}],{duration:700,easing:'ease-out'});
+        }
+      }
+    }
+
+    function triggerBerserk(durationMs=3000){
+      const end = performance.now() + durationMs;
+      const interval = setInterval(()=>{
+        for(let i=0;i<Math.min(12, agents.length);i++){
+          const a = agents[Math.floor(Math.random()*agents.length)];
+          a.vx += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * (NUCLEAR ? 1.6 : 1.1);
+          a.vy += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * (NUCLEAR ? 1.6 : 1.1);
+        }
+        fancyHud.animate([{filter:'brightness(1)'},{filter:'brightness(1.28)'},{filter:'brightness(1)'}],{duration:320,easing:'ease-out'});
+        // short rumble pulse during berserk (modest haptics)
+        const rumbleClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
+        appContainer.classList.add(rumbleClass);
+        setTimeout(()=>appContainer.classList.remove(rumbleClass), 260);
+        tryVibrate(NUCLEAR ? [90] : 50);
+        if(performance.now() > end) clearInterval(interval);
+      }, 420 + Math.random()*320);
+    }
+
+    /* ====== Init ====== */
+    setPlayerChoice(null);
+    setNuclear(false);
+    applyModeVisuals();
+    renderLeaderboards();
+    window.addEventListener('resize', ()=>{ const rect = arenaInner.getBoundingClientRect(); for(let a of agents){ a.x = Math.max(8, Math.min(rect.width-32, a.x)); a.y = Math.max(8, Math.min(rect.height-32, a.y)); } });
+    window.addEventListener('load', ()=>{ tryPlayMusic(); });
+
+    // small helpers for debugging/testing
+    window.forceSpawn = spawnSingleRandom;
+    window.toggleNuclear = ()=>{ setNuclear(!NUCLEAR); };
+    window.__CONFIG = { get: ()=>CONFIG, set: (c)=>{ CONFIG = c; } };
+    function capitalize(s){ return s && s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  </script>
+</body>
+</html>
