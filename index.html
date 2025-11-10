@@ -87,6 +87,8 @@
 
     footer{margin-top:16px;color:rgba(255,255,255,0.9);font-size:12px}
 
+    .img-btn.disabled{opacity:0.45;pointer-events:none;}
+
     @media(max-width:1000px){.arena-wrap{flex-direction:column}.hud{width:100%}.arena{min-height:520px}}
     @media(max-width:560px){h1{font-size:22px}.agent{width:28px;height:28px;font-size:16px}}
   </style>
@@ -115,6 +117,12 @@
         <button id="restartBtn" class="img-btn" title="Restart">
           <img id="restartIcon" src="assets/img/02.png" alt="Restart icon">
           <span class="ghost-text">Restart</span>
+        </button>
+
+        <!-- LUCKY BUTTON (new) -->
+        <button id="luckyBtn" class="img-btn disabled" title="Lucky — one-time powerful effect">
+          <img id="luckyIcon" src="assets/img/04.png" alt="Lucky icon">
+          <span id="luckyLabel" class="ghost-text">Lucky (1)</span>
         </button>
 
         <div class="toggle-wrap" title="Toggle NUCLEAR mode before starting">
@@ -187,7 +195,7 @@
     <footer id="mainFooter">Designed by a Sly Ass for a special Sly Ass. (This game was not made for "Olha" but for a Sly Ass)</footer>
   </div>
 
-  <!-- ASSETS comment: assets/video/01.mp4, assets/audio/01.mp3, assets/img/01.png 02.png 03.png -->
+  <!-- ASSETS comment: assets/video/01.mp4, assets/audio/01.mp3, assets/img/01.png 02.png 03.png 04.png -->
 
   <script>
     /* ====== CONFIG (tweakable) ====== */
@@ -245,6 +253,11 @@
     const mainHeader = document.getElementById('mainHeader');
     const mainFooter = document.getElementById('mainFooter');
 
+    // LUCKY DOM
+    const luckyBtn = document.getElementById('luckyBtn');
+    const luckyLabel = document.getElementById('luckyLabel');
+    const luckyIcon = document.getElementById('luckyIcon');
+
     let playerChoice = null;
     let agents = [];
     let running = false;
@@ -261,9 +274,15 @@
 
     let lastNuclearVibeMilestone = 0;
 
-    // HAPTICS helper
+    // LUCKY state
+    let luckyUses = 1; // player starts with one Lucky (per your request)
+    let luckyAvailable = false;
+    let initialChosenCount = 0; // how many of chosen pieces were spawned initially (per-type)
+    let chosenTypeAtSpawn = null;
+
+    // HAPTICS helper (now no-op to remove device rumble)
     function tryVibrate(pattern){
-      try{ if('vibrate' in navigator && typeof navigator.vibrate === 'function'){ navigator.vibrate(pattern); } }catch(e){}
+      // intentionally empty to remove vibration (performance / UX)
     }
 
     const music = new Audio('assets/audio/01.mp3'); music.loop = true; music.preload = 'auto'; music.volume = 0.66;
@@ -277,7 +296,7 @@
     function renderLeaderboards(){ const n = loadScores('normal'); const m = loadScores('nuclear'); lbNormal.innerHTML = n.length ? n.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>'; lbNuclear.innerHTML = m.length ? m.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>'; }
 
     /* ====== UI helpers ====== */
-    function applyModeVisuals(){ if(NUCLEAR){ startIcon.src = 'assets/img/03.png'; nuclearLabel.textContent = 'ON'; modeLabelEl.textContent = 'Nuclear'; } else { startIcon.src = 'assets/img/01.png'; nuclearLabel.textContent = 'OFF'; modeLabelEl.textContent = 'Non-Nuclear'; } restartIcon.src = 'assets/img/02.png'; spawnCounterEl.textContent = spawnCounter; }
+    function applyModeVisuals(){ if(NUCLEAR){ startIcon.src = 'assets/img/03.png'; nuclearLabel.textContent = 'ON'; modeLabelEl.textContent = 'Nuclear'; } else { startIcon.src = 'assets/img/01.png'; nuclearLabel.textContent = 'OFF'; modeLabelEl.textContent = 'Non-Nuclear'; } restartIcon.src = 'assets/img/02.png'; spawnCounterEl.textContent = spawnCounter; updateLuckyLabel(); }
 
     function setPlayerChoice(type){ playerChoice = type; playerChoiceDisplay.textContent = 'Choice: ' + (type ? (EMOJI[type] + ' ' + capitalize(type)) : '—'); pieceBtns.forEach(b=>b.classList.toggle('active', b.dataset.piece===type)); }
     pieceBtns.forEach(b=>{ b.addEventListener('click', ()=>setPlayerChoice(b.dataset.piece)); b.addEventListener('touchstart', ()=>setPlayerChoice(b.dataset.piece)); });
@@ -340,6 +359,11 @@
       updateHUD(); lastConversionAt = performance.now(); spawnCounterEl.textContent = spawnCounter;
       // ensure arena sizing accounted
       resizeArena();
+
+      // set lucky initial tracking: we spawned CONFIG.TOTAL_PER_TYPE of each type
+      initialChosenCount = CONFIG.TOTAL_PER_TYPE;
+      chosenTypeAtSpawn = playerChoice;
+      updateLuckyAvailability();
     }
 
     function spawnSingle(type){
@@ -460,9 +484,22 @@
             const now = performance.now();
             if(A.type !== B.type){
               if(now > B.nextConvertAllowed && BEATS[A.type] === B.type){
-                convertAgent(B, A.type, A); B.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(A.type === playerChoice) incrementPlayerScore(1); }
+                // A beats B -> convert B to A.type (but consider giant health)
+                if(handleGiantHit(B, A)){
+                  // giant absorbed hit (no conversion)
+                } else {
+                  convertAgent(B, A.type, A);
+                  B.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(A.type === playerChoice) incrementPlayerScore(1);
+                }
+              }
               else if(now > A.nextConvertAllowed && BEATS[B.type] === A.type){
-                convertAgent(A, B.type, B); A.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(B.type === playerChoice) incrementPlayerScore(1); }
+                if(handleGiantHit(A, B)){
+                  // giant absorbed hit
+                } else {
+                  convertAgent(A, B.type, B);
+                  A.nextConvertAllowed = now + CONFIG.CONVERT_COOLDOWN; anyConversion = true; if(B.type === playerChoice) incrementPlayerScore(1);
+                }
+              }
             }
           }
         }
@@ -498,6 +535,27 @@
       updateHUD();
     }
 
+    /* ====== Giant handling (LUCKY) ====== */
+    function handleGiantHit(targetAgentObj, sourceAgentObj){
+      // if target is a giant (has .giant and .health), it absorbs hits instead of converting immediately
+      if(targetAgentObj.giant){
+        targetAgentObj.health = (targetAgentObj.health || 4) - 1;
+        // small visual feedback
+        try{ targetAgentObj.el.animate([{transform:'scale(1)'},{transform:'scale(1.08)'},{transform:'scale(1)'}],{duration:260,easing:'ease-out'}); }catch(e){}
+        if(targetAgentObj.health <= 0){
+          // when health reaches 0, convert/destroy it (we'll convert to source type)
+          convertAgent(targetAgentObj, sourceAgentObj.type, sourceAgentObj);
+          delete targetAgentObj.giant;
+          delete targetAgentObj.health;
+          return false; // conversion occurred
+        } else {
+          // did not convert yet (giant took the hit)
+          return true;
+        }
+      }
+      return false;
+    }
+
     /* ====== Conversions & HUD ====== */
     function convertAgent(target, newType, sourceAgent){
       if(target.type === newType) return;
@@ -506,6 +564,8 @@
       if(sourceAgent){ target.vx = (sourceAgent.vx*0.6) + (Math.random()*1.4 - 0.7); target.vy = (sourceAgent.vy*0.6) + (Math.random()*1.4 - 0.7); }
       else { target.vx += (Math.random()*2-1) * 0.6; target.vy += (Math.random()*2-1) * 0.6; }
       setTimeout(()=>{ if(target && target.el) target.el.classList.remove('convert'); },520);
+      // after conversion we should check Lucky availability (if conversions removed chosen type)
+      updateLuckyAvailability();
     }
 
     function updateHUD(){
@@ -513,6 +573,7 @@
       countRockEl.textContent = counts.rock; countPaperEl.textContent = counts.paper; countScissorsEl.textContent = counts.scissors;
       playerScoreEl.textContent = playerScore; piecesLeftEl.textContent = agents.length; spawnCounterEl.textContent = spawnCounter; modeLabelEl.textContent = NUCLEAR ? 'Nuclear' : 'Non-Nuclear';
       renderLeaderboards();
+      updateLuckyAvailability();
     }
 
     function checkEndCondition(){
@@ -527,31 +588,43 @@
     }
 
     function showEndMessage(playerWon, winnerType){
-      const starHTML = `<span class="victory-stars">✶ ✶</span>`;
-      let titleHTML = '';
-      if(playerWon){
-        titleHTML = `<div class="victory-wrap"><div><span class="victory-title">Congratulations sly ass — you chose well!</span>${starHTML}</div></div>`;
-      } else {
-        titleHTML = `<div class="victory-wrap"><div class="loser-title">Not this time sly ass — try again.</div></div>`;
-      }
-      const mode = NUCLEAR ? 'Nuclear' : 'Normal';
-      const scores = loadScores(NUCLEAR ? 'nuclear' : 'normal');
-      const scoresHtml = scores.length ? scores.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>';
-      endMessageInner.innerHTML = `${titleHTML}
-        <div style="margin:10px 0;color:rgba(255,230,120,0.98)">Winner: ${EMOJI[winnerType]} ${capitalize(winnerType)}</div>
-        <div style="text-align:left; max-width:360px; margin: 0 auto"><div class="muted">Top in this mode</div>${scoresHtml}</div>
-        <div style="margin-top:12px"><button class="img-btn" id="playAgain"><img src="assets/img/02.png" alt="restart"><span class="ghost-text">Restart</span></button></div>`;
-      const p = document.getElementById('playAgain'); if(p) p.addEventListener('click', ()=>{ resetGame(); });
-      launchConfetti(playerWon ? (NUCLEAR ? 300 : 120) : (NUCLEAR ? 120 : 36));
-      fancyHud.animate([{transform:'scale(1)'},{transform:'scale(' + (NUCLEAR ? 1.12 : 1.04) + ')'},{transform:'scale(1)'}],{duration:520,easing:'ease-out'});
+  const starHTML = `<span class="victory-stars">✶ ✶</span>`;
+  let titleHTML = '';
+  if(playerWon){
+    titleHTML = `<div class="victory-wrap"><div><span class="victory-title">Congratulations sly ass — you chose well!</span>${starHTML}</div></div>`;
+  } else {
+    titleHTML = `<div class="victory-wrap"><div class="loser-title">Not this time sly ass — try again.</div></div>`;
+  }
+  const mode = NUCLEAR ? 'Nuclear' : 'Normal';
+  const scores = loadScores(NUCLEAR ? 'nuclear' : 'normal');
+  const scoresHtml = scores.length ? scores.map((it,idx)=>`<div class="row"><div>#${idx+1} — ${it.score}</div><div class="muted">${(new Date(it.date)).toLocaleString()}</div></div>`).join('') : '<div class="muted">no scores yet</div>';
+  endMessageInner.innerHTML = `${titleHTML}
+    <div style="margin:10px 0;color:rgba(255,230,120,0.98)">Winner: ${EMOJI[winnerType]} ${capitalize(winnerType)}</div>
+    <div style="text-align:left; max-width:360px; margin: 0 auto"><div class="muted">Top in this mode</div>${scoresHtml}</div>
+    <div style="margin-top:12px"><button class="img-btn" id="playAgain"><img src="assets/img/02.png" alt="restart"><span class="ghost-text">Restart</span></button></div>`;
+  const p = document.getElementById('playAgain'); if(p) p.addEventListener('click', ()=>{ resetGame(); });
+  launchConfetti(playerWon ? (NUCLEAR ? 300 : 120) : (NUCLEAR ? 120 : 36));
+  fancyHud.animate([{transform:'scale(1)'},{transform:'scale(' + (NUCLEAR ? 1.12 : 1.04) + ')'},{transform:'scale(1)'}],{duration:520,easing:'ease-out'});
 
-      const runClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
-      appContainer.classList.add(runClass);
-      setTimeout(()=>appContainer.classList.remove(runClass), 620);
-      tryVibrate(NUCLEAR ? [140,40,120] : [110,30,70]);
+  const runClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
+  appContainer.classList.add(runClass);
+  setTimeout(()=>appContainer.classList.remove(runClass), 620);
+  tryVibrate(NUCLEAR ? [140,40,120] : [110,30,70]);
 
-      nuclearToggle.classList.remove('disabled');
-    }
+  // ====== FIX LUCKY AVAILABILITY ON END ======
+  // recarrega 1 lucky para a próxima partida (sem forçar uso), atualiza label
+  luckyUses = Math.max(1, luckyUses); // garante pelo menos 1 (se já for >0 não altera)
+  // resetamos tracking de spawn/choice — a próxima partida fará o setup correto ao spawnar
+  chosenTypeAtSpawn = null;
+  initialChosenCount = 0;
+  luckyAvailable = false;
+  luckyBtn.classList.add('disabled');
+  updateLuckyLabel();
+  // =================================================
+
+  nuclearToggle.classList.remove('disabled');
+}
+
 
     function launchConfetti(n){
       confetti.innerHTML=''; const colors=['#ff4d4f','#ffb703','#8ecae6','#a0e7a0','#c77dff','#ffd6a5'];
@@ -673,6 +746,14 @@
     function resetGame(){
       stopBattle(); clearArena(); setPlayerChoice(null); playerScore=0; updateHUD(); endMessageInner.innerHTML=''; confetti.innerHTML=''; monotonyStack=0; lastAutoSpawnAt=0; spontaneousSpawnCounter=0; spawnCounter=0;
       spawnCounterEl.textContent = spawnCounter; nuclearToggle.classList.remove('disabled'); applyModeVisuals(); lastNuclearVibeMilestone = 0;
+
+      // reset lucky
+      luckyUses = 1;
+      luckyAvailable = false;
+      chosenTypeAtSpawn = null;
+      initialChosenCount = 0;
+      luckyBtn.classList.add('disabled');
+      updateLuckyLabel();
     }
     function resetArena(){ clearArena(); agents=[]; playerScore=0; updateHUD(); lastConversionAt = performance.now(); monotonyStack=0; lastAutoSpawnAt=0; spontaneousSpawnCounter=0; lastNuclearVibeMilestone = 0; }
     function clearArena(){ cancelAnimationFrame(rafId); arenaInner.querySelectorAll('.agent, .rocket, .spawn-burst').forEach(n=>n.remove()); agents=[]; running=false; lastTime=null; startTime=null; rafId=null; }
@@ -692,6 +773,152 @@
     window.toggleNuclear = ()=>{ setNuclear(!NUCLEAR); };
     window.__CONFIG = { get: ()=>CONFIG, set: (c)=>{ CONFIG = c; } };
     function capitalize(s){ return s && s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+    /* ====== LUCKY logic ====== */
+
+    function updateLuckyLabel(){
+      luckyLabel.textContent = `Lucky (${luckyUses})`;
+      if(luckyUses <= 0) luckyBtn.classList.add('disabled');
+    }
+
+    function updateLuckyAvailability(){
+      // only consider while running and after spawn; playerChoice must be set
+      if(!playerChoice || !chosenTypeAtSpawn || initialChosenCount <= 0) { luckyAvailable = false; luckyBtn.classList.add('disabled'); return; }
+      // count remaining of chosen type
+      const remaining = agents.filter(a=>a.type === chosenTypeAtSpawn).length;
+      const destroyed = Math.max(0, initialChosenCount - remaining);
+      const percentDestroyed = destroyed / initialChosenCount;
+      if(percentDestroyed >= 0.7 && luckyUses > 0 && running){
+        luckyAvailable = true;
+        luckyBtn.classList.remove('disabled');
+      } else {
+        luckyAvailable = false;
+        luckyBtn.classList.add('disabled');
+      }
+    }
+
+    luckyBtn.addEventListener('click', ()=>{
+      if(!luckyAvailable || luckyUses <= 0) return;
+      useLucky();
+    });
+
+    function useLucky(){
+      if(luckyUses <= 0) return;
+      luckyUses--;
+      updateLuckyLabel();
+      luckyBtn.classList.add('disabled');
+      luckyAvailable = false;
+
+      // pick a random lucky effect
+      const r = Math.random();
+      // 5 effects equally likely segments -> adjust probabilities if you want different
+      if(r < 0.2) lucky_spawnGiant();
+      else if(r < 0.4) lucky_bomb();
+      else if(r < 0.6) lucky_teleport();
+      else if(r < 0.8) lucky_crazyPhysics();
+      else lucky_ultraSpawn();
+
+      // rare chance to grant back a lucky use
+      if(Math.random() < 0.08){
+        luckyUses++;
+        updateLuckyLabel();
+        // small celebratory animation / toast
+        try { fancyHud.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:560}); }catch(e){}
+        // subtle message
+        setTimeout(()=>{ alert('Incredible luck! You gained another Lucky use!'); }, 160);
+      }
+
+      // after use, recalc availability later
+      setTimeout(()=>{ updateHUD(); updateLuckyAvailability(); }, 200);
+    }
+
+    // LUCKY EFFECTS implementations
+
+    function lucky_spawnGiant(){
+      // spawn a giant of random type in center. It needs 4 hits to be converted (we set health=4).
+      const rect = arenaInner.getBoundingClientRect();
+      const pos = { x: rect.width/2, y: rect.height/2 };
+      const type = ['rock','paper','scissors'][Math.floor(Math.random()*3)];
+      const el = document.createElement('div'); el.className = 'agent ' + type; el.dataset.type = type; el.innerText = EMOJI[type];
+      el.style.left = (pos.x) + 'px'; el.style.top = (pos.y) + 'px';
+      el.style.fontSize = '44px'; el.style.width = '96px'; el.style.height = '96px'; el.style.borderRadius = '12px';
+      arenaInner.appendChild(el);
+      const r = 48;
+      agents.push({el, x: pos.x + r, y: pos.y + r, vx:0, vy:0, r, type, giant:true, health:4, nextConvertAllowed: performance.now()+300});
+      // visual pulse
+      try{ el.animate([{transform:'scale(.8)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:520}); }catch(e){}
+      updateHUD();
+    }
+
+    function lucky_bomb(){
+      if(agents.length === 0) return;
+      // pick a random agent as bomb center
+      const centerIdx = Math.floor(Math.random() * agents.length);
+      const center = agents[centerIdx];
+      // remove between 2 and 10 nearest agents to center
+      const removeCount = Math.min(agents.length, 2 + Math.floor(Math.random()*9));
+      // compute distances
+      const arr = agents.map((a, idx) => ({idx, d: Math.hypot(a.x - center.x, a.y - center.y)}));
+      arr.sort((a,b)=>a.d-b.d);
+      const toRemoveIdxs = arr.slice(0, removeCount).map(x=>x.idx).sort((a,b)=>b-a); // remove from end to preserve indexes
+      // explosion visual
+      boomPulse.classList.remove('show'); void boomPulse.offsetWidth; boomPulse.classList.add('show');
+      for(let i of toRemoveIdxs){
+        const a = agents[i];
+        if(!a) continue;
+        try{ a.el.animate([{transform:'scale(1)'},{transform:'scale(.2) rotate(60deg)', opacity:0}],{duration:420}); }catch(e){}
+        a.el.remove();
+        agents.splice(i,1);
+      }
+      updateHUD();
+    }
+
+    function lucky_teleport(){
+      // shuffle positions of all agents
+      const rect = arenaInner.getBoundingClientRect();
+      for(let a of agents){
+        const nx = 24 + Math.random()*(rect.width - 48);
+        const ny = 24 + Math.random()*(rect.height - 48);
+        a.x = nx; a.y = ny;
+        // small pop
+        try{ a.el.animate([{transform:'translateY(0)'},{transform:'translateY(-8px)'},{transform:'translateY(0)'}],{duration:320}); }catch(e){}
+      }
+      updateHUD();
+    }
+
+    function lucky_crazyPhysics(){
+      // apply strong random velocities for 5 seconds
+      const duration = 5000;
+      for(let a of agents){
+        a.vx += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * 6;
+        a.vy += (Math.random()*2-1) * CONFIG.CRAZY_MOVE_FORCE * 6;
+      }
+      fancyHud.animate([{filter:'brightness(1)'},{filter:'brightness(1.5)'},{filter:'brightness(1)'}],{duration:duration});
+      // also add a rumble visual
+      const rumbleClass = NUCLEAR ? 'rumble-heavy-running' : 'rumble-running';
+      appContainer.classList.add(rumbleClass);
+      tryVibrate(60);
+      setTimeout(()=>{ appContainer.classList.remove(rumbleClass); updateHUD(); }, duration + 80);
+    }
+
+    function lucky_ultraSpawn(){
+      const n = 10 + Math.floor(Math.random()*31); // 10..40
+      for(let i=0;i<n;i++){
+        spawnSingleRandomImpl();
+      }
+      // small burst visual
+      fancyHud.animate([{transform:'scale(1)'},{transform:'scale(1.08)'},{transform:'scale(1)'}],{duration:420});
+      updateHUD();
+    }
+
+    /* ====== Hook lucky checks to conversions/agent removals/spawns ====== */
+
+    // whenever an agent is removed externally (e.g., bomb or other), make sure to call updateLuckyAvailability via updateHUD
+    // We already call updateHUD after such operations.
+
+    // Ensure updateLuckyAvailability is called periodically too
+    setInterval(()=>{ updateLuckyAvailability(); }, 700);
+
   </script>
 </body>
 </html>
